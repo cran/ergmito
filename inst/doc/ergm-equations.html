@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<meta name="author" content="George G Vega Yon" />
+
+<meta name="date" content="2020-01-21" />
+
+<title>ERGM equations</title>
+
+
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#header {
+text-align: center;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; }  code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">ERGM equations</h1>
+<h4 class="author">George G Vega Yon</h4>
+<h4 class="date">2020-01-21</h4>
+
+
+
+
+<p>The likelihood of an Exponential Random Graph Model (ERGM) is defined as follows:</p>
+<p><span class="math display">\[
+\text{P}\left(\left.\mathbf{Y}= \mathbf{y}\vphantom{X = x}\right|\vphantom{\mathbf{Y}= \mathbf{y}}X = x\right) = \frac{%
+  \text{exp}\left\{{\theta}^{\text{t}}g\left(\mathbf{y}, x\right)\right\} %
+  }{%
+  \sum_{\mathbf{y}&#39;\in\mathcal{Y}} \text{exp}\left\{{\theta}^{\text{t}}g\left(\mathbf{y}&#39;, x\right)\right\} %
+  },\quad \forall \mathbf{y}\in\mathcal{Y}
+\]</span></p>
+<p>Where <span class="math inline">\(\mathbf{y}\in\mathcal{Y}\)</span> is a random graph, <span class="math inline">\(X\)</span> is a vector of attributes, <span class="math inline">\(\theta\)</span> is a column-vector of length <span class="math inline">\(k\)</span> (model parameters), and <span class="math inline">\(g\left(\cdot\right)\)</span> is a function that returns a column-vector of sufficient statistics, also of length <span class="math inline">\(k\)</span>.</p>
+<p>In the case of <code>ergmito</code>, we usually look at a pooled model with <span class="math inline">\(n\)</span> networks, i.e.</p>
+<p><span class="math display">\[
+\prod_{i \in N}\text{P}\left(\left.\mathbf{Y}= \mathbf{y}_i\vphantom{X = x_i}\right|\vphantom{\mathbf{Y}= \mathbf{y}_i}X = x_i\right) = \prod_{i \in N}\frac{%
+  \text{exp}\left\{{\theta}^{\text{t}}g\left(\mathbf{y}_i, x_i\right)\right\} %
+  }{%
+  \sum_{\mathbf{y}_i&#39;\in\mathcal{Y}} \text{exp}\left\{{\theta}^{\text{t}}g\left(\mathbf{y}_i&#39;, x_i\right)\right\} %
+  },\quad \forall \mathbf{y}_i\in\mathcal{Y}
+\]</span></p>
+<p>Where <span class="math inline">\(N\equiv\{1,\dots, n\}\)</span> is a vector of indices.</p>
+<div id="log-likelihood" class="section level2">
+<h2>log-likelihood</h2>
+<p>In the case of a single network, the model’s log-likelihood is given by</p>
+<p><span class="math display">\[
+\text{log}\left(\text{P}\left(\cdot\right)\right) = {\theta}^{\text{t}}g\left(\mathbf{y}, x\right) - %
+  \text{log}\left( % 
+    \sum_{\mathbf{y}&#39;\in\mathbf{Y}}\text{exp}\left\{{\theta}^{\text{t}}g\left(\mathbf{y}&#39;, x\right)\right\} %
+    \right)
+\]</span> In general, we can reduce the computational complexity of this calculations by looking at the isomorphic sufficient statistics, this is, group up elements based on the set of unique vectors of sufficient statistics:</p>
+<p><span class="math display">\[
+{\theta}^{\text{t}}g\left(\mathbf{y}, x\right) - %
+  \text{log}\left( % 
+    \sum_{\mathbf{s}\in\mathcal{S}}\mathbf{w}_\mathbf{s}\text{exp}\left\{{\theta}^{\text{t}}\mathbf{s}\right\} %
+    \right)
+\]</span></p>
+<p>Where <span class="math inline">\(\mathcal{S}\)</span> is the support of the sufficient statistics under <span class="math inline">\(\mathcal{Y}\)</span>, <span class="math inline">\(\mathbf{s}\in\mathcal{S}\)</span> is one of its realizations, and <span class="math inline">\(\mathbf{w}_\mathbf{s}\equiv|\left\{\mathbf{y}\in\mathcal{Y}: g\left(\mathbf{y},x\right) = \mathbf{s}\right\}|\)</span> is the number of networks in <span class="math inline">\(\mathcal{Y}\)</span> which sufficient statistics equal <span class="math inline">\(\mathbf{s}\)</span>. Furthermore, we can write this in matrix form:</p>
+<p><span class="math display">\[
+{\theta}^{\text{t}}g\left(\mathbf{y}, x\right) - %
+  \text{log}\left( % 
+    \mathbf{W}\times \text{exp}\left\{\mathbf{S}\times \theta\right\}  %
+    \right)
+\]</span></p>
+<p>Where <span class="math inline">\(\mathbf{W}\equiv\{\mathbf{w}_\mathbf{s}\}_{\mathbf{s}\in\mathbf{S}}\)</span> is a row vector of, length <span class="math inline">\(w\)</span> and <span class="math inline">\(\mathbf{S}\)</span> is a matrix of size <span class="math inline">\(w\times k\)</span>. The log-likelihood of a pooled model is simply the sum of the individual ones.</p>
+</div>
+<div id="gradient" class="section level2">
+<h2>Gradient</h2>
+<p>The partial derivative of the log-likelihood with respect to <span class="math inline">\(j\)</span>-th parameter equals:</p>
+<p><span class="math display">\[
+\frac{\delta}{\delta\theta_j}\text{log}\left(\text{P}\left(\cdot\right)\right) = % 
+  g\left(\mathbf{y}\right)_j - %
+  \frac{ %
+    \sum_{\mathbf{s}\in\mathcal{S}}\mathbf{w}_\mathbf{s}\mathbf{s}_j\text{exp}\left\{{\theta}^{\text{t}}\mathbf{s}\right\} %
+    }{ %
+    \sum_{\mathbf{s}\in\mathcal{S}}\mathbf{w}_\mathbf{s}\text{exp}\left\{{\theta}^{\text{t}}\mathbf{s}\right\} %
+    }, \quad\forall j
+\]</span></p>
+<p>We can also write this using matrix notation as follows:</p>
+<p><span class="math display">\[
+\nabla\text{log}\left(\text{P}\left(\cdot\right)\right) = %
+  g\left(\mathbf{y}, x\right) - %
+  {\mathbf{S}}^{\text{t}}\times \left[ \mathbf{W}\circ \text{exp}\left\{\mathbf{S}\times \theta\right\} \right]/ %
+  \lambda({\theta})
+\]</span></p>
+<p>Where <span class="math inline">\(\circ\)</span> is the element-wise product and <span class="math inline">\(\lambda({\theta}) = \mathbf{W}\times \text{exp}\left\{\mathbf{S}\times \theta\right\}\)</span>.</p>
+</div>
+<div id="hessian" class="section level2">
+<h2>Hessian</h2>
+<p>In the case of the hessian, each <span class="math inline">\((j, l)\)</span> element of, <span class="math inline">\(\frac{\delta^2}{\delta\theta_k\delta\theta_u}\text{log}\left(\text{P}\left(\cdot\right)\right)\)</span>, can be computed as:</p>
+<p><span class="math display">\[
+- \frac{%
+  \left(\sum_{\mathbf{s}&#39;\in\mathcal{S}}\mathbf{s}_j&#39;\mathbf{s}_l&#39;\mathbf{w}_\mathbf{s}\text{exp}\left\{{\theta}^{\text{t}} \mathbf{s}\right\}\right)
+  \lambda(\theta) - %
+  \left(\sum_{\mathbf{s}&#39;\in\mathcal{S}}\mathbf{s}_j&#39;\mathbf{w}_\mathbf{s}\text{exp}\left\{{\theta}^{\text{t}} \mathbf{s}\right\}\right)
+  \left(\sum_{\mathbf{s}&#39;\in\mathcal{S}}\mathbf{s}_l&#39;\mathbf{w}_\mathbf{s}\text{exp}\left\{{\theta}^{\text{t}} \mathbf{s}\right\}\right)
+}{%
+  \lambda(\theta)^2%
+}
+\]</span> Where <span class="math inline">\(\mathbf{s}_j\)</span> as the <span class="math inline">\(j\)</span>-th element of the vector <span class="math inline">\(\mathbf{s}\)</span>. Once again, we can simplify this using matrix notation:</p>
+<p><span class="math display">\[
+-\frac{%
+  \mathbf{W}\times\left[\mathbf{S}_j\circ\mathbf{S}_l \circ \text{exp}\left\{\mathbf{S}\times\theta\right\}\right]
+  \lambda(\theta) - %
+  \left(\mathbf{W}\times\left[\mathbf{S}_j \circ \text{exp}\left\{\mathbf{S}\times\theta\right\}\right]\right)
+  \left(\mathbf{W}\times\left[\mathbf{S}_l \circ \text{exp}\left\{\mathbf{S}\times\theta\right\}\right]\right)
+}{%
+  \lambda(\theta)^2%
+}
+\]</span></p>
+<p>Where <span class="math inline">\(\mathbf{S}_j\)</span> is the <span class="math inline">\(j\)</span>-th column of the matrix <span class="math inline">\(\mathbf{S}\)</span>.</p>
+</div>
+<div id="references" class="section level1 unnumbered">
+<h1>References</h1>
+<div id="refs" class="references">
+<div id="ref-ergmitoarxiv">
+<p>Vega Yon, George, Kayla de la Haye, and Andrew Slaughter. 2019. “Exponential Random Graph Models for Little Networks.” arXiv preprint arXiv:1904.10406. <a href="https://arxiv.org/pdf/1904.10406.pdf">https://arxiv.org/pdf/1904.10406.pdf</a>.</p>
+</div>
+</div>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
