@@ -99,11 +99,15 @@ predict.ergmito <- function(object, newdata = NULL, ...) {
       
       # If compared previously, then assign that value
       equal_networks <-
-        same_dist(networks[[i]], networks[[j]], object$formulae$vertex.attrs)
+        same_dist(
+          networks[[i]], networks[[j]],
+          object$formulae$used_attrs$attr
+          # subset(object$formulae$vertex_attrs, type == "vertex")
+          )
       if (equal_networks) {
         
         # Put the prediction in the right order of things
-        if (length(object$formulae$vertex.attrs)) {
+        if (length(object$formulae$vertex_attrs)) {
           ord <- attr(equal_networks, "map10")
           predictions[[i]] <- predictions[[j]][ord,][,ord]
         } else {
@@ -122,12 +126,12 @@ predict.ergmito <- function(object, newdata = NULL, ...) {
     sampler <- new_rergmito(
       model = model.,
       theta = coef(object),
-      sizes = nvertex(networks[[i]]),
+      # sizes = nvertex(networks[[i]]),
       ...
       )
     
-    mats  <- sampler$networks[[as.character(nvertex(networks[[i]]))]]
-    probs <- sampler$prob[[as.character(nvertex(networks[[i]]))]]
+    mats  <- sampler$networks
+    probs <- sampler$probabilities
     
     predictions[[i]] <- mats[[1L]]*probs[1L]
     for (j in 2L:length(probs))

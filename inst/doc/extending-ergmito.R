@@ -17,13 +17,13 @@ model_object$loglik
 
 ## ----looking-at-the-components------------------------------------------------
 # The vectors of weights
-str(model_object$stats.weights)
+str(model_object$stats_weights)
 
 # The matrices of the sufficient statistics
-str(model_object$stats.statmat)
+str(model_object$stats_statmat)
 
 # The target statistic
-model_object$target.stats
+model_object$target_stats
 
 ## -----------------------------------------------------------------------------
 # Analyzing the model

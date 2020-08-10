@@ -3,7 +3,6 @@
 \name{geodesic}
 \alias{geodesic}
 \alias{geodesita}
-\alias{geodesic.list}
 \alias{geodesic.matrix}
 \alias{geodesic.network}
 \title{Geodesic distance matrix (all pairs)}
@@ -11,8 +10,6 @@
 geodesic(x, force = FALSE, ...)
 
 geodesita(x, force = FALSE, ...)
-
-\method{geodesic}{list}(x, force = FALSE, ...)
 
 \method{geodesic}{matrix}(x, force = FALSE, simplify = FALSE, ...)
 
@@ -38,4 +35,14 @@ small networks.
 \examples{
 data(fivenets)
 geodesic(fivenets)
+
+# Comparing with sna
+if (require("sna")) {
+  net0 <- fivenets[[1]]
+  net  <- network::network(fivenets[[1]])
+  benchmarkito(
+    ergmito = ergmito::geodesic(net0),
+    sna     = sna::geodist(net), times = 1000
+  )
+}
 }

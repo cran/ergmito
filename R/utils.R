@@ -11,37 +11,37 @@ nvertex <- function(x) UseMethod("nvertex")
 nedges <- function(x, ...) UseMethod("nedges")
 
 #' @export
-#' @rdname nvertex
+# @rdname nvertex
 nedges.network <- function(x, ...) {
   network::network.edgecount(x, ...)
 }
 
 #' @export
-#' @rdname nvertex
+# @rdname nvertex
 nedges.list <- function(x, ...) {
   sapply(x, nedges, ...)
 }
 
 #' @export
-#' @rdname nvertex
+# @rdname nvertex
 nedges.matrix <- function(x, ...) {
   sum(x != 0)
 }
 
 #' @export
-#' @rdname nvertex
+# @rdname nvertex
 nedges.ergmito <- function(x, ...) {
   nedges(x$network, ...)
 }
 
 #' @export
-#' @rdname nvertex
+# @rdname nvertex
 nedges.formula <- function(x, ...) {
   nedges(eval(x[[2]]), envir = environment(x))
 }
 
 #' @export
-#' @rdname nvertex
+# @rdname nvertex
 nvertex.network <- function(x) {
   
   network::network.size(x)
@@ -49,7 +49,7 @@ nvertex.network <- function(x) {
 }
 
 #' @export
-#' @rdname nvertex
+# @rdname nvertex
 nvertex.matrix <- function(x) {
   
   ncol(x)
@@ -57,7 +57,7 @@ nvertex.matrix <- function(x) {
 }
 
 #' @export
-#' @rdname nvertex
+# @rdname nvertex
 nvertex.list <- function(x) {
   
   sapply(x, nvertex)
@@ -65,7 +65,7 @@ nvertex.list <- function(x) {
 }
 
 #' @export
-#' @rdname nvertex
+# @rdname nvertex
 nvertex.ergmito <- function(x) {
   
   nvertex(x$network)
@@ -73,7 +73,7 @@ nvertex.ergmito <- function(x) {
 }
 
 #' @export
-#' @rdname nvertex
+# @rdname nvertex
 nvertex.formula <- function(x) {
   nvertex(eval(x[[2]], envir = environment(x)))
 }
@@ -83,19 +83,19 @@ nvertex.formula <- function(x) {
 nnets <- function(x) UseMethod("nnets")
 
 #' @export
-#' @rdname nvertex
+# @rdname nvertex
 nnets.list <- function(x) length(x)
 
 #' @export
-#' @rdname nvertex
+# @rdname nvertex
 nnets.matrix <- function(x) 1L
 
 #' @export
-#' @rdname nvertex
+# @rdname nvertex
 nnets.network <- function(x) 1L
 
 #' @export
-#' @rdname nvertex
+# @rdname nvertex
 nnets.ergmito <- function(x) {
   
   x$formulae$nnets
@@ -103,7 +103,7 @@ nnets.ergmito <- function(x) {
 }
 
 #' @export
-#' @rdname nvertex
+# @rdname nvertex
 nnets.formula <- function(x) {
   
   nnets(eval(x[[2]], envir = environment(x)))
@@ -117,7 +117,7 @@ nnets.formula <- function(x) {
 #' are checking is not an object of class network, otherwise it simply returns
 #' false.
 #' @return `is_directed` checks whether the passed networks are directed using
-#' the function [network::is.directed]. In the case of multiple networks,
+#' the function \code{\link[network:network.indicators]{is.directed}}. In the case of multiple networks,
 #' the function returns a logical vector. Only objects of class `network` can be
 #' checked, otherwise, if `check_type = FALSE`, the function returns `TRUE` by default.
 #' @examples 
@@ -133,17 +133,17 @@ nnets.formula <- function(x) {
 is_directed <- function(x, check_type = FALSE) UseMethod("is_directed")
 
 #' @export
-#' @rdname nvertex
+# @rdname nvertex
 is_directed.network <- function(x, check_type = FALSE) network::is.directed(x)
 
 #' @export
-#' @rdname nvertex
+# @rdname nvertex
 is_directed.list <- function(x, check_type = FALSE) {
   sapply(x, is_directed, check_type = check_type)
 }
 
 #' @export
-#' @rdname nvertex
+# @rdname nvertex
 is_directed.default <- function(x, check_type = FALSE) {
   
   if (check_type) 
@@ -158,13 +158,13 @@ is_directed.default <- function(x, check_type = FALSE) {
 }
 
 #' @export
-#' @rdname nvertex
+# @rdname nvertex
 is_directed.ergmito <- function(x, check_type = FALSE) {
   is_directed(x$network, check_type = check_type)
 }
 
 #' @export
-#' @rdname nvertex
+# @rdname nvertex
 is_directed.formula <- function(x, check_type = FALSE) {
   is_directed(eval(x[[2]], envir = environment(x)), check_type = check_type)
 }
@@ -176,11 +176,18 @@ is_directed.formula <- function(x, check_type = FALSE) {
 #' 
 #' @param x An object to be coerced as an adjacency matrix.
 #' @export
+#' @examples 
 #' 
+#' set.seed(1231)
+#' x <- matrix_to_network(rbernoulli(rep(5, 100)))
+#' benchmarkito(
+#'   as_adjmat = as_adjmat(x),
+#'   as.matrix = lapply(x, as.matrix)
+#' )
 as_adjmat <- function(x) UseMethod("as_adjmat")
 
 #' @export
-#' @rdname as_adjmat
+# @rdname as_adjmat
 as_adjmat.network <- function(x) {
   
   n   <- nvertex(x)
@@ -209,17 +216,17 @@ as_adjmat.network <- function(x) {
 }
 
 #' @export
-#' @rdname as_adjmat
+# @rdname as_adjmat
 as_adjmat.matrix <- function(x) x
 
 #' @export
-#' @rdname as_adjmat
+# @rdname as_adjmat
 as_adjmat.list <- function(x) {
   lapply(x, as_adjmat)
 }
 
 #' @export
-#' @rdname as_adjmat
+# @rdname as_adjmat
 as_adjmat.formula <- function(x) {
   
   as_adjmat(eval(x[[2]], envir = environment(x)))
@@ -227,6 +234,12 @@ as_adjmat.formula <- function(x) {
 }
 
 make_chunks <- function(N, chunk_size) {
+  
+  if (N < 1)
+    stop(
+      "N should be an integer greater than 0.",
+      call. = FALSE
+      )
   
   if (chunk_size > N)
     return(list(from=1, to=N))

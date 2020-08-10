@@ -1,21 +1,26 @@
 #' Estimation of ERGMs using Maximum Likelihood Estimation (MLE)
 #' 
-#' As a difference from [ergm::ergm][ergm], `ergmito` uses the exact log-likelihood
-#' function for fitting the model. This implies that all the `2^(n*(n-1))` 
-#' graphs are generated for computing the normalizing constant of the ERGM
-#' model. As a rule of thumb, directed graphs with more than 5 vertices
-#' should not be fitted using MLE, but instead MC-MLE as implemented in the
-#' ergm package. The same applies for un-directed graphs with more than 8
-#' vertices..
+#' `ergmito` uses Maximum Likelihood Estimation (MLE) to fit Exponential Random
+#' Graph Models for single or multiple small networks, the later using
+#' pooled-data MLE. To do so we use exact likelihoods, which implies fully
+#' enumerating the support of the model. Overall, the exact likelihood
+#' calculation is only possible when dealing with directed (undirected) networks
+#' size 5 (7). In general, directed (undirected) graphs with more than 5 (7)
+#' vertices should not be fitted using MLE, but instead other methods such as
+#' the MC-MLE algorithm or the Robbins-Monro Stochastic Approximation algorithm,
+#' both of which are available in the ergm R package.The workhorse function of
+#' `ergmito` is the `ergm` package function [ergm::ergm.allstats()].
 #' 
-#' @param x,object An object of class `ergmito`
+#' @param object An object of class `ergmito`
 #' @param model Model to estimate. See [ergm::ergm]. The only difference with
 #' `ergm` is that the LHS can be a list of networks.
-#' @param gattr_model A formula. Model specification for graph attributes. This
-#' is useful when using multiple networks.
+#' @param model_update A \code{\link[stats:formula]{formula}}. this can be used to
+#' apply transformations, create interaction effects, add offset terms, etc. 
+#' (see examples below and more details in [ergmito_formulae]).
 #' @param optim.args List. Passed to [stats::optim].
-#' @param target.stats A matrix of target statistics (see [ergm::ergm]).
+#' @param target_stats A matrix of target statistics (see [ergm::ergm]).
 #' @template stats
+#' @template offset
 #' @param init A numeric vector. Sets the starting parameters for the
 #' optimization routine. Default is a vector of zeros.
 #' @param use.grad Logical. When `TRUE` passes the gradient function to `optim`.
@@ -28,7 +33,12 @@
 #' @param ... Further arguments passed to the method. In the case of `ergmito`,
 #' `...` are passed to [ergmito_formulae].
 #' 
-#' @seealso The function [plot.ergmito] for post-estimation diagnostics.
+#' @details 
+#' The support of the sufficient statistics is calculated using ERGM's
+#' [ergm::ergm.allstats()] function.
+#' 
+#' @seealso The function [plot.ergmito()] and [gof_ergmito()] for post-estimation
+#' diagnostics.
 #' 
 #' @return An list of class `ergmito`:
 #' 
@@ -52,7 +62,11 @@
 #'   estimates and the reached log-likelihood values.
 #' - `timer`         Vector of times (for benchmarking). Each unit marks the starting
 #'   point of the step.
-#'   
+#'
+#' Methods [base::print()], [base::summary()], [stats::coef()], [stats::logLik()],
+#' [stats::nobs()], [stats::vcov()], [stats::AIC()], \code{\link[stats:AIC]{stats::BIC()}},
+#' [stats::confint()], and  [stats::formula()] are available. 
+#'
 #' @section MLE:
 #' 
 #' Maximum Likelihood Estimates are obtained using the [stats::optim] function.
@@ -83,12 +97,13 @@
 #' reported as parameter estimates. This feature is intended for testing only.
 #' Anecdotally, `optim` reaches the max in the first try.
 #' 
+#' 
 #' @examples 
 #' 
 #' # Generating a small graph
 #' set.seed(12)
 #' n <- 4
-#' net <- rbernoulli(n, p = .7)
+#' net <- rbernoulli(n, p = .3)
 #' 
 #' model <- net ~ edges + mutual
 #' 
@@ -126,6 +141,65 @@
 #'   # 2   3 -34.205 1 0.9312     0.3346
 #' }
 #' 
+#' # Example 4: Adding an reference term for edge-count ----------------------
+#' 
+#' # Simulating networks of different sizes
+#' set.seed(12344)
+#' nets <- rbernoulli(c(rep(4, 10), rep(5, 10)), c(rep(.2, 10), rep(.1, 10)))
+#' 
+#' # Fitting an ergmito under the Bernoulli model
+#' ans0 <- ergmito(nets ~ edges)
+#' summary(ans0)
+#' # 
+#' # ERGMito estimates
+#' # 
+#' # formula:
+#' #   nets ~ edges
+#' # 
+#' #       Estimate Std. Error z value  Pr(>|z|)    
+#' # edges -1.68640    0.15396 -10.954 < 2.2e-16 ***
+#' # ---
+#' # Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+#' # AIC: 279.3753    BIC: 283.1436    (Smaller is better.) 
+#' 
+#' 
+#' # Fitting the model including a reference term for networks of size 5.
+#' # Notice that the variable -n- and other graph attributes can be used
+#' # with -model_update-.
+#' ans1 <- ergmito(nets ~ edges, model_update = ~ I(edges * (n == 5)))
+#' summary(ans1)
+#' # 
+#' # ERGMito estimates
+#' # 
+#' # formula:
+#' #   nets ~ edges + I(edges * (n == 5))
+#' # 
+#' #                     Estimate Std. Error z value  Pr(>|z|)    
+#' # edges               -1.18958    0.21583 -5.5116 3.556e-08 ***
+#' # I(edges * (n == 5)) -0.90116    0.31250 -2.8837   0.00393 ** 
+#' # ---
+#' # Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+#' # AIC: 272.9916    BIC: 280.5282    (Smaller is better.) 
+#' 
+#' # The resulting parameter for the edge-count is smaller for networks
+#' # of size five
+#' plogis(coef(ans1)[1])   # 0.23
+#' plogis(sum(coef(ans1))) # 0.11
+#' 
+#' # We can see that in this case the difference in edge-count matters.
+#' if (require(lmtest)) {
+#' 
+#'   lrtest(ans0, ans1)
+#'   # Likelihood ratio test
+#'   # 
+#'   # Model 1: nets ~ edges
+#'   # Model 2: nets ~ edges + I(edges * (n == 5))
+#'   # #Df  LogLik Df  Chisq Pr(>Chisq)   
+#'   # 1   1 -138.69                        
+#'   # 2   2 -134.50  1 8.3837   0.003786 **
+#'   #   ---
+#'   #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+#' }
 #' 
 #' @importFrom stats optim terms rnorm
 #' @importFrom MASS ginv
@@ -133,49 +207,53 @@
 NULL
 
 ERGMITO_DEFAULT_OPTIM_CONTROL <- list(
-  reltol = .Machine$double.eps ^ 3/4
+  reltol = sqrt(.Machine$double.eps)
 )
 
 #' @export
 #' @rdname ergmito
 ergmito <- function(
   model,
-  gattr_model   = NULL,
-  stats.weights = NULL,
-  stats.statmat = NULL,
+  model_update   = NULL,
+  stats_weights = NULL,
+  stats_statmat = NULL,
   optim.args    = list(),
   init          = NULL,
   use.grad      = TRUE,
-  target.stats  = NULL,
+  target_stats  = NULL,
   ntries        = 1L,
   keep.stats    = TRUE,
+  target_offset = NULL,
+  stats_offset  = NULL,
   ...
   ) {
 
   # Keeping track of time
-  timer_start <- Sys.time()
+  timer <- c(start = unname(proc.time()["elapsed"]))
 
   # Generating the objective function
   ergmitoenv <- environment(model)
-
+  
   formulae   <- ergmito_formulae(
     model,
-    gattr_model   = gattr_model, 
-    target.stats  = target.stats,
-    stats.weights = stats.weights,
-    stats.statmat = stats.statmat,
+    model_update  = model_update, 
+    target_stats  = target_stats,
+    stats_weights = stats_weights,
+    stats_statmat = stats_statmat,
+    target_offset = target_offset,
+    stats_offset  = stats_offset,
     env           = ergmitoenv,
     ...
-    )
-  timer <- c(ergmito_formulae = difftime(Sys.time(), timer_start, units = "secs"))
+  )
+  
+  timer <- c(timer, ergmito_formulae = unname(proc.time()["elapsed"]))
   
   # Verifying existence of MLE
-  timer0 <- Sys.time()
   support <- check_support(
-    formulae$target.stats,
-    formulae$stats.statmat
-    )
-  timer <- c(timer, check_support = difftime(Sys.time(), timer0, units = "secs"))
+    formulae$target_stats,
+    formulae$stats_statmat
+  )
+  timer <- c(timer, check_support = unname(proc.time()["elapsed"]))
   
   npars  <- formulae$npars
   
@@ -183,7 +261,7 @@ ergmito <- function(
   # then replace it with a very large but tend to infinite value
   if (!length(init)) 
     init <- rep(0, npars)
-
+  
   # Checking optim parameters --------------------------------------------------
   if (!length(optim.args$control))
     optim.args$control <- list()
@@ -196,25 +274,32 @@ ergmito <- function(
   # For BFGS 
   if (!length(optim.args$method)) 
     optim.args$method <- "BFGS"
-    
-  # Passed (and default) other than the functions
-  optim.args0 <- optim.args
   
+  optim.args$hessian <- FALSE
+
+    
   # Setting arguments for optim
-  optim.args$fn <- formulae$loglik
+  optim.args$fn   <- formulae$loglik
   if (use.grad) 
     optim.args$gr <- formulae$grad
-  optim.args$hessian       <- FALSE
-  optim.args$par           <- init
   
+  optim.args$par  <- init
+    
   # Will try to solve the problem more than once... if needed
   ntry <- 1L
   history <- matrix(
-    NA, nrow = ntries, ncol = formulae$npars + 1,
-    dimnames = list(1L:ntries, c(formulae$term.names, "value"))
-    )
+    NA,
+    nrow = ntries,
+    ncol = npars + 1,
+    dimnames = list(
+      1L:ntries,
+      c(formulae$term_names, "value")
+      )
+  )
   
-  timer0 <- Sys.time()
+  # Passed (and default) other than the functions
+  optim.args0 <- optim.args
+  
   while (ntry <= ntries) {
     
     # Maximizign the likelihood and storing the value
@@ -224,7 +309,7 @@ ergmito <- function(
       ans      <- cur_ans
       best_try <- ntry
     }
-     
+    
     
     # Storing the current value
     history[ntry, ] <- c(cur_ans$par, cur_ans$value)
@@ -235,24 +320,20 @@ ergmito <- function(
     
     # Resetting the parameters for the optimization, now this time we start
     # from the init parameters + some random value
-    optim.args$par <- stats::rnorm(formulae$npars, -2, 2)
-    
+    optim.args$par <- stats::rnorm(npars, -2, 2)
     ntry <- ntry + 1
     
   }
-  timer <- c(timer, optim = difftime(Sys.time(), timer0, units = "secs"))
+
+  timer <- c(timer, optim = unname(proc.time()["elapsed"]))
   
   # Checking the convergence
-  timer0 <- Sys.time()
   estimates <- check_convergence(
     optim_output = ans,
     model        = formulae,
     support      = support
-    )
-  timer <- c(
-    timer,
-    chec_covergence = difftime(Sys.time(), timer0, units = "secs")
-    )
+  )
+  timer <- c(timer, chec_covergence = unname(proc.time()["elapsed"]))
   
   # Capturing model
   if (!inherits(model, "formula"))
@@ -281,145 +362,48 @@ ergmito <- function(
       history    = history
     ),
     class = c("ergmito")
-    )
+  )
   
   if (!keep.stats) {
-    ans$formulae$stats.weights <- NULL
-    ans$formulae$stats.statmat <- NULL
+    
+    # We do it in this fashion as 
+    to_keep <- setdiff(
+        names(formulae),
+        c(
+          "stats_weights", "stats_statmat",
+          "loglik", "grad",
+          "target_offset", "stats_offset"
+          )
+        )
+
+    fenvir <- environment(formulae$loglik)
+    formulae <- formulae[to_keep]
+    
+    # We have to warn the user about this issue if he tries to reuse these functions
+    formulae$loglik <- formulae$grad <- function(...) {
+      stop(
+        "As the option keep.stats = FALSE, this functions are no longer ",
+        "available to the user. Re-run the model using keep.stats = TRUE, if you ",
+        "want to use the loglikelihood or gradient functions of this model.",
+        call. = FALSE
+        )
+    }
+    ans$formulae <- formulae
+    
+    # Emptying environment, just to be safe
+    rm(list = ls(envir = fenvir, all.names = TRUE), envir = fenvir)
+
   }
   
-  ans$nobs <- nvertex(ans$network)
-  ans$nobs <- sum(ans$nobs*(ans$nobs - 1))
+  # Counting cells, this will depend on whether nets are directed or not
+  sizes    <- nvertex(ans$network)
+  ans$nobs <- sizes * (sizes - 1)/
+    ifelse(is_directed(ans$network), 1, 2)
   
-  timer <- c(timer, total = difftime(Sys.time(), timer_start, units = "secs"))
-  ans$timer <- timer
+  ans$nobs <- sum(ans$nobs)
+  
+  ans$timer <- diff(timer)
+  ans$timer <- c(ans$timer, total = sum(ans$timer))
   ans
-  
-}
-
-#' @export
-#' @rdname ergmito
-print.ergmito <- function(x, ...) {
-  
-  cat("\nERGMito estimates\n")
-  if (length(x$note))
-    cat(sprintf("note: %s\n", x$note))
-    
-  print(structure(unclass(x), class="ergm"))
-  invisible(x)
-  
-}
-
-#' @export
-#' @rdname ergmito
-summary.ergmito <- function(object, ...) {
-
-  # Computing values
-  sdval <- sqrt(diag(vcov(object)))
-  z     <- coef(object)/sdval
-  
-  is_boot <- inherits(object, "ergmito_boot")
-  
-  # Generating table
-  ans <- structure(
-    list(
-      coefs = data.frame(
-      Estimate     = coef(object),
-      `Std. Error` = sdval,
-      `z value`    = z,
-      `Pr(>|z|)`   = 2*stats::pnorm(-abs(z)),
-      row.names    = names(coef(object)),
-      check.names  = FALSE
-    ),
-    aic         = stats::AIC(object),
-    bic         = stats::BIC(object),
-    model       = deparse(object$formulae$model),
-    note        = object$note,
-    R           = ifelse(is_boot, object$R, 1L)
-    ),
-    class = c("ergmito_summary", if (is_boot) "ergmito_summary_boot" else  NULL)
-  )
-  
-  ans
-}
-
-#' @export
-#' @rdname ergmito
-print.ergmito_summary <- function(
-  x,
-  ...
-  ) {
-
-  cat("\nERGMito estimates\n")
-  
-  if (x$R > 1L)
-    cat("\n(bootstrapped model with ", x$R, " replicates.)\n")
-  
-  if (length(x$note))
-    cat(sprintf("note: %s\n", x$note))
-  cat("\nformula: ", x$model, "\n\n")
-  stats::printCoefmat(
-    x$coefs,
-    signif.stars  = TRUE,
-    signif.legend = TRUE
-    )
-  
-  cat(paste("AIC:", format(x$aic), 
-            "  ", "BIC:", format(x$bic), 
-            "  ", "(Smaller is better.)", "\n", sep = " "))
-  
-  invisible(x)
-    
-}
-
-
-# Methods ----------------------------------------------------------------------
-#' @export
-#' @rdname ergmito
-#' @importFrom stats coef logLik vcov nobs
-coef.ergmito <- function(object, ...) {
-  
-  object$coef
-  
-}
-
-#' @export
-#' @rdname ergmito
-logLik.ergmito <- function(object, ...) {
-  
-  object$mle.lik
-  
-}
-
-#' @export
-#' @rdname ergmito
-nobs.ergmito <- function(object, ...) {
-  
-  object$nobs
-  
-}
-
-#' @export
-#' @param solver Function. Used to compute the inverse of the hessian matrix. When
-#' not null, the variance-covariance matrix is recomputed using that function.
-#' By default, `ergmito` uses [MASS::ginv].
-#' @rdname ergmito
-vcov.ergmito <- function(object, solver = NULL, ...) {
-  
-  if (is.null(solver))
-    return(object$covar)
-  
-  structure(
-    - solver(object$optim.out$hessian),
-    dimnames = dimnames(object$covar)
-  )
-  
-}
-
-#' @export
-#' @rdname ergmito
-formula.ergmito <- function(x, ...) {
-  
-  x$formulae$model
   
 }

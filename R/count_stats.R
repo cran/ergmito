@@ -1,7 +1,7 @@
 #' Count Network Statistics
 #' 
 #' This function is similar to what [ergm::summary_formula] does, but it provides
-#' a fast wrapper suited for matrix class objects.
+#' a fast wrapper suited for matrix class objects (see benchmark in the examples).
 #' @param X List of square matrices. (networks)
 #' @param terms Character vector with the names of the statistics to calculate.
 #' Currently, the only available statistics are: '\Sexpr{paste(ergmito::AVAILABLE_STATS(), collapse="', '")}'.
@@ -13,14 +13,13 @@
 #' counts of statistics.
 #' @examples 
 #' # DGP 
-#' x <- powerset(5)
-#' ans0 <- count_stats(x[1:20], c("mutual", "edges"))
+#' set.seed(123199)
+#' x <- rbernoulli(rep(5, 10))
+#' ans0 <- count_stats(x, c("mutual", "edges"))
 #' 
 #' # Calculating using summary_formula
-#' fm <- x[[i]] ~ mutual + edges
-#' ans1 <- lapply(1:20, function(i) {
-#'   environment(fm) <- environment()
-#'   ergm::summary_formula(fm)
+#' ans1 <- lapply(x, function(i) {
+#'   ergm::summary_formula(i ~ mutual + edges)
 #' })
 #' 
 #' ans1 <- do.call(rbind, ans1)
@@ -28,43 +27,22 @@
 #' # Comparing
 #' all.equal(unname(ans0), unname(ans1))
 #' 
+#' # count_stats is vectorized (and so faster)
+#' bm <- benchmarkito(
+#'   count_stats = count_stats(x, c("mutual", "edges")),
+#'   lapply      = lapply(x, function(i) {
+#'   ergm::summary_formula(i ~ mutual + edges)
+#' }), times = 50
+#' )
+#' 
+#' plot(bm)
+#' 
 count_stats <- function(X, ...) UseMethod("count_stats")
 
 #' @export
 #' @rdname count_stats
 AVAILABLE_STATS <- function() count_available()
 
-#' Parses a formula to the model parameters (and attributes if applicable)
-#' @param x A formula.
-#' @noRd
-analyze_formula <- function(x, check_w_ergm = FALSE) {
-  
-  # Getting the parameters
-  terms_passed <- attr(stats::terms(x), "term.labels")
-  
-  # Do these have attributes
-  has_attr <- grepl("^[a-zA-Z0-9]+[(].+[)]", terms_passed)
-  
-  # Capturing attributes
-  terms_attrs <- vector("list", length(terms_passed))
-  # ostar <- function(i, attr = NULL) {
-  #   list(name = paste0("ostar", i), attr = attr)
-  # }
-  for (term in which(has_attr)) {
-    terms_attrs[[term]] <- gsub("\"?[)].*", "", gsub(".+[(]\"?", "", terms_passed[term]))
-  }
-  
-  terms_names <- gsub("[(].+", "", terms_passed)
-  
-  list(
-    passed    = terms_passed,
-    names     = terms_names,
-    attrnames = terms_attrs,
-    attrs     = replicate(length(terms_names), double(0))
-  )
-  
-  
-}
 
 #' @export
 #' @rdname count_stats
@@ -87,11 +65,11 @@ count_stats.formula <- function(X, ...) {
       paste(are_undirected, collapse = ", "), ".", call. = FALSE
       )
     
-  # Analyzing the formula
-  ergm_model <- analyze_formula(X)
+  # Analyzing the formula (with network as a reference)
+  ergm_model <- analyze_formula(X, LHS)
   
   # Can we do it?
-  available <- which(!(ergm_model$names %in% count_available()))
+  available <- which(!(ergm_model$term_names %in% count_available()))
   if (length(available))
     stop(
       "The following term(s)s are not available in count_stats: ",
@@ -100,13 +78,28 @@ count_stats.formula <- function(X, ...) {
       )
   
   # Capturing attributes
-  for (a in seq_along(ergm_model$attrnames)) {
-    ergm_model$attrs[[a]] <- if (is.null(ergm_model$attrnames[[a]]))
+  for (a in seq_along(ergm_model$term_attrs)) {
+    ergm_model$attrs[[a]] <- if (!length(ergm_model$term_attrs[[a]]))
       double(0)
-    else
+    else {
+      
+      # This check is important, for now. Future versions may include more
+      # complex terms that hold more than one attribute.
+      if (length(ergm_model$term_attrs[[a]]) > 1L)
+        stop(
+          "For now, terms with more than one attribute are not supported on. ",
+          "The current model you are trying to fit uses the term: ",
+          ergm_model$term_passed[a],
+          " which includes the following attributes: ",
+          paste(ergm_model$term_attrs[[a]], collapse=", "),
+          call. = FALSE
+          )
+        
       lapply(LHS, function(net) {
-        network::get.vertex.attribute(net, attrname = ergm_model$attrnames[[a]])
+        network::get.vertex.attribute(net, attrname = ergm_model$term_attrs[[a]])
       })
+      
+    }
   }
   
   # Coercion is later since we need to check for arguments
@@ -125,14 +118,14 @@ count_stats.formula <- function(X, ...) {
     
   }
   
-  out <- matrix(nrow = nnets(LHS), ncol = length(ergm_model$names),
-                dimnames = list(NULL, ergm_model$passed))
+  out <- matrix(nrow = nnets(LHS), ncol = length(ergm_model$term_names),
+                dimnames = list(NULL, ergm_model$term_passed))
   
   for (j in 1:ncol(out)) {
     
     out[, j] <- count_stats(
       X     = LHS,
-      terms = ergm_model$names[j],
+      terms = ergm_model$term_names[j],
       attrs = ergm_model$attrs[[j]]
       )
     
@@ -160,7 +153,7 @@ count_stats.list <- function(X, terms, attrs = NULL, ...) {
          call. = FALSE)
   
   ans <- matrix(NA, nrow = length(X), ncol=length(terms))
-  
+  all_same_attr <- length(attrs) == 1L
   for (s in seq_along(chunks$from)) {
     
     i <- chunks$from[s]
@@ -168,7 +161,9 @@ count_stats.list <- function(X, terms, attrs = NULL, ...) {
     
     for (k in seq_along(terms)) {
       if (!length(attrs))
-        ans[i:j, k] <- count_stats.(X[i:j], terms[k], list(numeric(0)))
+        ans[i:j, k] <- count_stats.(X[i:j], terms[k], list(double(0L)))
+      else if (all_same_attr)
+        ans[i:j, k] <- count_stats.(X[i:j], terms[k], attrs)
       else
         ans[i:j, k] <- count_stats.(X[i:j], terms[k], attrs[i:j])
     }
@@ -197,6 +192,16 @@ count_stats.list <- function(X, terms, attrs = NULL, ...) {
 #' @examples 
 #' data(fivenets)
 #' geodesic(fivenets)
+#' 
+#' # Comparing with sna
+#' if (require("sna")) {
+#'   net0 <- fivenets[[1]]
+#'   net  <- network::network(fivenets[[1]])
+#'   benchmarkito(
+#'     ergmito = ergmito::geodesic(net0),
+#'     sna     = sna::geodist(net), times = 1000
+#'   )
+#' }
 geodesic <- function(x, force = FALSE, ...) UseMethod("geodesic")
 
 #' @export
@@ -204,7 +209,7 @@ geodesic <- function(x, force = FALSE, ...) UseMethod("geodesic")
 geodesita <- geodesic
 
 #' @export
-#' @rdname geodesic
+# @rdname geodesic
 geodesic.list <- function(x, force = FALSE, ...) {
   
   geodesic.(as_adjmat(x), force = force)

@@ -1,9 +1,10 @@
 Package: ergmito
-Version: 0.2-1
-Date: 2020-02-10
+Version: 0.3-0
+Date: 2020-07-15
 Title: Exponential Random Graph Models for Small Networks
 Description: Simulation and estimation of Exponential Random Graph Models (ERGMs)
-  for small networks using exact statistics. As a difference from the 'ergm'
+  for small networks using exact statistics as shown in Vega Yon et al. (2020)
+  <DOI:10.1016/j.socnet.2020.07.005>. As a difference from the 'ergm'
   package, 'ergmito' circumvents using Markov-Chain Maximum Likelihood Estimator
   (MC-MLE) and instead uses Maximum Likelihood Estimator (MLE) to fit ERGMs
   for small networks. As exhaustive enumeration is computationally feasible for
@@ -21,30 +22,24 @@ Authors@R: c(
       person("Army Research Laboratory and the U.S. Army Research Office",
       role = "fnd", comment = "Grant Number W911NF-15-1-0577")
       )
-RoxygenNote: 7.0.2
+RoxygenNote: 7.1.1
 Encoding: UTF-8
 Imports: ergm, network, MASS, Rcpp, texreg, stats, parallel, utils,
         methods, graphics
 LinkingTo: Rcpp, RcppArmadillo
 License: MIT + file LICENSE
 Suggests: covr, sna, lmtest, fmcmc, coda, knitr, rmarkdown, tinytest
-Collate: 'RcppExports.R' 'boot.R' 'count_stats.R' 'data.R'
-        'ergm_blockdiagonal.R' 'ergmito-checkers.R' 'ergmito-package.R'
-        'ergmito.R' 'ergmito_surface.R' 'formulae.R' 'gof.R'
-        'induced_submat.R' 'network.R' 'powerset.R' 'predict.R'
-        'random.R' 'same_dist.R' 'sim.R' 'simulate.R' 'texreg.R'
-        'utils.R'
 VignetteBuilder: knitr
 LazyData: true
-URL: https://muriteams.github.io/ergmito
+URL: https://muriteams.github.io/ergmito/
 BugReports: https://github.com/muriteams/ergmito/issues
 Language: en-US
 NeedsCompilation: yes
-Packaged: 2020-02-12 16:52:10 UTC; george
+Packaged: 2020-08-10 17:15:38 UTC; george
 Author: George Vega Yon [cre, aut] (<https://orcid.org/0000-0002-3171-0844>),
   Kayla de la Haye [ths] (<https://orcid.org/0000-0002-2536-7701>),
   Army Research Laboratory and the U.S. Army Research Office [fnd] (Grant
     Number W911NF-15-1-0577)
 Maintainer: George Vega Yon <g.vegayon@gmail.com>
 Repository: CRAN
-Date/Publication: 2020-02-12 17:20:02 UTC
+Date/Publication: 2020-08-10 21:40:02 UTC

@@ -1,52 +1,44 @@
 #' @rdname check_convergence
-#' @param target.stats,stats.statmat See [ergmito_formulae].
+#' @param target_stats,stats_statmat See [ergmito_formulae].
 #' @param threshold Numeric scalar. Confidence range for flagging an observed
 #' statistic as potentially near the boundary.
 #' @param warn logical scalar.
 check_support <- function(
-  target.stats,
-  stats.statmat,
+  target_stats,
+  stats_statmat,
   threshold = .8,
   warn      = TRUE
   ) {
   
   res <- structure(
-    logical(ncol(target.stats)),
-    names = colnames(target.stats)
+    logical(ncol(target_stats)),
+    names = colnames(target_stats)
   )
   
   # In the case of failing to converge, this tells what should be
   # the best guess for the sign of Inf.
-  possible_sign <- double(ncol(target.stats))
+  possible_sign <- double(ncol(target_stats))
   
-  for (k in 1L:ncol(target.stats)) {
+  for (k in 1L:ncol(target_stats)) {
     
-    # Retrieving the space range
-    # stats_range <- stats
-    
-    # Looking for degeneracy at the k-th parameter
-    stat_range <- lapply(stats.statmat, "[", i=, j = k, drop = TRUE)
+    # Looking for not in the interior at the k-th parameter
+    stat_range <- lapply(stats_statmat, "[", i=, j = k, drop = TRUE)
     stat_range <- lapply(stat_range, range)
     stat_range <- do.call(rbind, stat_range)
     
     res[k] <- mean(
-      (target.stats[, k] == stat_range[, 1L]) | 
-        (target.stats[, k] == stat_range[, 2L])
+      (target_stats[, k] - stat_range[,1L])/
+        (stat_range[, 2L] - stat_range[, 1L] + 1e-20)
       )
     
     # If on average is less than .5, then is negative, otherwise
     # is positive.
-    possible_sign[k] <- mean(
-      (target.stats[, k] - stat_range[, 1L])/ 
-        (stat_range[, 2L] - stat_range[, 1L])
-    )
-    
-    possible_sign[k] <- ifelse(possible_sign[k] < .5, -1, 1)
+    possible_sign[k] <- ifelse(res[k] < .5, -1, 1)
     
   }
   
   attr(res, "threshold") <- threshold
-  test <- which(res >= threshold)
+  test <- which((res >= threshold) | (res <= threshold))
   if (length(test)) {
     
     if (warn)
@@ -56,14 +48,14 @@ check_support <- function(
               " the statistic(s) \"", paste(names(res)[test], collapse="\", \""), 
               "\".", call. = FALSE, immediate. = TRUE)
     
-    attr(res, "degenerate") <- TRUE
-    attr(res, "which")      <- test
-    attr(res, "sign")       <- possible_sign
+    attr(res, "interior") <- FALSE
+    attr(res, "which")    <- test
+    attr(res, "sign")     <- possible_sign
     
   } else {
-    attr(res, "degenerate") <- FALSE
-    attr(res, "which")      <- NULL
-    attr(res, "sign")       <- possible_sign
+    attr(res, "interior") <- TRUE
+    attr(res, "which")    <- NULL
+    attr(res, "sign")     <- possible_sign
   }
   
   res
@@ -144,12 +136,12 @@ map_convergence_message <- function(x) {
 #' Possible codes and corresponding messages:
 #' 
 #' - 00 All OK (no message).
-#' - 01 \Sexpr{ergmito:::map_convergence_message(01)}. % Convergence, but the hessian is not psd
-#' - 10 \Sexpr{ergmito:::map_convergence_message(10)}. % Optim did not reported convergence, but things look OK.
-#' - 11 \Sexpr{ergmito:::map_convergence_message(11)}. % Optim did not converged, but the hessian is not psd. 
-#' - 20 \Sexpr{ergmito:::map_convergence_message(20)}. % One or more estimates went to inf, all finite were able to be inverted.
-#' - 21 \Sexpr{ergmito:::map_convergence_message(21)}. % One or more are inf, hessian is not psd
-#' - 30 \Sexpr{ergmito:::map_convergence_message(30)}. % All estimates went to Inf (degenerate distribution).
+#' - 01 \Sexpr{ergmito:::map_convergence_message(01)}. 
+#' - 10 \Sexpr{ergmito:::map_convergence_message(10)}. 
+#' - 11 \Sexpr{ergmito:::map_convergence_message(11)}. 
+#' - 20 \Sexpr{ergmito:::map_convergence_message(20)}. 
+#' - 21 \Sexpr{ergmito:::map_convergence_message(21)}. 
+#' - 30 \Sexpr{ergmito:::map_convergence_message(30)}. 
 #' 
 #' @keywords Internal
 check_convergence <- function(
@@ -166,17 +158,21 @@ check_convergence <- function(
       "internal function, are you sure you want to use this directly?.",
       call. = TRUE
       )
+
   
   # Checking values of the convergence
-  to_check <- c(which(abs(optim_output$par) > crit), attr(support, "which"))
+  to_check <- c(
+    which(abs(optim_output$par) > crit),
+    attr(support, "which")
+    )
   to_check <- sort(unique(to_check))
   
   k <- length(optim_output$par)
   estimates <- list(
-    par    = structure(optim_output$par, names = model$term.names),
+    par    = structure(optim_output$par, names = model$term_names),
     vcov   = matrix(
       0.0, nrow = k, ncol = k,
-      dimnames = with(model, list(term.names, term.names))
+      dimnames = with(model, list(term_names, term_names))
       ),
     valid  = 1L:k,
     status = ifelse(optim_output$convergence == 0L, 0L, 1L),
@@ -186,12 +182,7 @@ check_convergence <- function(
   
   # We will update this later
   # estimates$vcov[] <- optim_output$hessian
-  estimates$vcov[] <- exact_hessian(
-    x             = model$target.stats,
-    params        = optim_output$par,
-    stats.weights = model$stats.weights,
-    stats.statmat = model$stats.statmat
-  )
+  estimates$vcov[] <- model$hess(optim_output$par)
   
   # Step 1: Checking parameter estimates ---------------------------------------
   if (length(to_check)) {
@@ -207,25 +198,30 @@ check_convergence <- function(
         newpars[i] <- attr(support, "sign")[i] *Inf
         modified   <- c(modified, i)
         
-      } else {
-        
-        tmppar    <- optim_output$par
-        tmppar[i] <- tmppar[i] + sign(tmppar[i])*.001
-        newll <- model$loglik(params = tmppar)
-        
-        # Updating the values to be inf, if needed.
-        if (newll >= optim_output$value) {
-          newpars[i] <- sign(newpars[i])*Inf
-          modified   <- c(modified, i)
-        }
-        
       }
       
     }
     
     # Updating parameters, if needed
-    estimates$par[]    <- newpars
-    estimates$valid  <- setdiff(estimates$valid, modified)
+    estimates$par[] <- newpars
+    estimates$valid <- setdiff(estimates$valid, modified)
+    
+    if (length(modified)) {
+      # Updating the hessian matrix. We cannot use infite values for this step
+      # since optimHess will return with an error. That's why we just use a
+      # very large value instead
+      newpars <- estimates$par
+      newpars[!is.finite(newpars)] <- sign(newpars[!is.finite(newpars)]) * 100
+      
+      estimates$vcov[] <- model$hess(newpars)
+      estimates$vcov[!is.finite(estimates$par),] <- 0
+      estimates$vcov[,!is.finite(estimates$par)] <- 0
+      
+      # The observed likelihood will change as well, it may be the case that it
+      # becomes undefined b/c of the fact that 0 * Inf = NaN, yet the right
+      # value is well defined
+      estimates$ll <- model$loglik(newpars)
+    }
     
     # Are we in hell?
     if (!length(estimates$valid)) {
@@ -233,30 +229,14 @@ check_convergence <- function(
       warning_ergmito(
         "All parameters went to +-Inf. This suggests the MLE may not exist.",
         call. = FALSE
-        )
+      )
       
       estimates$status <- 30L
       
     } else if (length(modified)) {
       
-      # Updating the hessian matrix. We cannot use infite values for this step
-      # since optimHess will return with an error. That's why we just use a
-      # very large value instead
-      newpars <- estimates$par
-      newpars[!is.finite(newpars)] <- sign(newpars[!is.finite(newpars)])*5
-      
-      estimates$vcov <- exact_hessian(
-        params        = newpars,
-        x             = model$target.stats,
-        stats.weights = model$stats.weights,
-        stats.statmat = model$stats.statmat
-      )
-      
-      # The observed likelihood will change as well, it may be the case that it
-      # becomes undefined b/c of the fact that 0 * Inf = NaN
-      estimates$ll <- model$loglik(estimates$par)
-      
       estimates$status <- 20L
+      
     }
     
     

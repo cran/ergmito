@@ -7,6 +7,7 @@
 #' @param R Integer scalar. Number of simulations to generate (passed to [sample]).
 #' This is only used if `sim_ci = TRUE`.
 #' @param GOF Formula. Additional set of parameters to perform the GOF.
+#' @param GOF_update Formula. See the section on model updating in [ergmito_formulae()].
 #' @param ncores Integer scalar. Number of cores to use for parallel computations
 #' (currently ignored).
 #' @param ... Further arguments passed to [stats::quantile].
@@ -38,12 +39,12 @@
 #' components:
 #' - `ci` A list of matrices of length `nnets(object)` with the corresponding
 #' confidence intervals for the statistics of the model.
-#' - `target.stats` A matrix of the target statistics.
+#' - `target_stats` A matrix of the target statistics.
 #' - `ergmito.probs` A list of numeric vectors of length `nnets(object)` with the
 #' probabilities associated to each possible structure of network.
 #' - `probs` The value passed via `probs`.
 #' - `model` The fitted model.
-#' - `term.names` Character vector. Names of the terms used in the model.
+#' - `term_names` Character vector. Names of the terms used in the model.
 #' - `quantile.args` A list of the values passed via `...`.
 #' 
 #' @examples 
@@ -106,21 +107,42 @@ get_feasible_ci_bounds <- function(x, probs, lower, upper) {
 
 #' @export
 #' @rdname ergmito_gof
+#' @details 
+#' The print method tries to copy (explicitly) the print method of the
+#' `gof` function from the `ergm` R package.
 gof_ergmito <- function(
   object,
-  GOF    = NULL,
-  probs  = c(.05, .95),
-  sim_ci = FALSE,
-  R      = 50000L,
-  ncores = 1L,
+  GOF        = NULL,
+  GOF_update = NULL,
+  probs      = c(.05, .95),
+  sim_ci     = FALSE,
+  R          = 50000L,
+  ncores =    1L,
   ...
   ) {
   
+  if (!inherits(object, "ergmito"))
+    stop(
+      "-object- should be of class 'ergmito'. It is of class '",
+      paste(class(object), collapse = "', '"), "'.", 
+      call. = FALSE
+      )
+
+  if (any(!is.finite(coef(object))))
+    stop("GOF can only be computed in models that are well defined. This model ",
+         "has some undefined coefficients (Inf).", call. = FALSE)
+  
+  # Checking which observations were discarded
+  if (length(object$formulae$excluded)) {
+    object$network <- object$network[-object$formulae$excluded]
+  }
+    
   res <- vector(mode = "list", length = nnets(object))
   pr  <- res
   ran <- res
-  
+
   if (!is.null(GOF)) {
+    
     # Deparsing formula
     if (!inherits(GOF, "formula"))
       stop("`GOF` must be an object of class formula.", call. = FALSE)
@@ -137,15 +159,20 @@ gof_ergmito <- function(
     # This formula includes everything
     GOF <- stats::as.formula(gsub(".*[~]", "~ . + ", deparse(GOF)))
     GOF <- stats::update.formula(object$formulae$model, GOF)
+    
   }
   
-  target.stats <- NULL
+  target_stats <- NULL
+  
+  g_attrs <- graph_attributes_as_df(object$network)
   
   for (i in seq_len(length(res))) {
     
+    stats_offset.  <- object$formulae$stats_offset[[i]]
+
     # Has the user provided a formula? In this case we need to use an alternative
     # matrix of `statmat` and `weights`. We are restricted to whatever allstats
-    # allows generating (e.g. distance is not included)
+    # allows generating (e.g. distance is not included)    
     if (!is.null(GOF)) {
       
       GOF <- stats::update.formula(GOF, object$network[[i]] ~ .)
@@ -155,24 +182,42 @@ gof_ergmito <- function(
       weights. <- statmat.$weights
       statmat. <- statmat.$statmat
       
-      target.stats <- rbind(target.stats, summary(GOF))
+      # Model frame, if needed
+      g_attrs     <- graph_attributes_as_df(object$network[[i]])
+      model_frame <- model_frame_ergmito(
+        formula        = GOF,
+        formula_update = GOF_update,
+        data           = rbind(ergm::summary_formula(GOF), statmat.),
+        g_attrs.       = g_attrs
+        )
+      
+      statmat.      <- model_frame$stats[-1, , drop = FALSE]
+      stats_offset. <- model_frame$offsets[-1]
+      target_stats. <- model_frame$stats[1, , drop = FALSE]
       
     } else {
       
-      statmat. <- object$formulae$stats.statmat[[i]]
-      weights. <- object$formulae$stats.weights[[i]]
+      statmat.       <- object$formulae$stats_statmat[[i]]
+      weights.       <- object$formulae$stats_weights[[i]]
+      target_stats.  <- object$formulae$target_stats[i, ]
       
-      target.stats <- rbind(target.stats, object$formulae$target.stats[i, ])
     }
     
+    # Appending the observed target_stats
+    target_stats <- rbind(target_stats, target_stats.)
+    
     # Computing the probability of observing each class of networks
-    pr[[i]] <- exp(exact_loglik(
-      x             = statmat.[, names(stats::coef(object)), drop = FALSE],
-      stats.statmat = statmat.[, names(stats::coef(object)), drop = FALSE],
-      stats.weights = weights.,
-      params        = stats::coef(object),
-      ncores        = ncores
-    ))*weights.
+    pr[[i]] <- exp(
+      exact_loglik(
+        x             = statmat.[, names(stats::coef(object)), drop = FALSE],
+        stats_statmat = statmat.[, names(stats::coef(object)), drop = FALSE],
+        stats_weights = weights.,
+        stats_offset  = stats_offset.,
+        target_offset = stats_offset.,
+        params        = stats::coef(object),
+        ncores        = ncores
+      )
+    )*weights.
     
     # Calculating the quantiles. First, we need to make some room to the data
     # to be stored
@@ -235,15 +280,15 @@ gof_ergmito <- function(
   structure(
     list(
       ci            = res,
-      target.stats  = target.stats,
+      target_stats  = target_stats,
       ergmito.probs = pr,
       probs         = probs,
       model         = if (is.null(GOF))
-        object$formulae$model
+        object$formulae$model_final
       else {
         as.formula(gsub(".*[~]", " ~ ", deparse(GOF)))
         },
-      term.names    = rownames(res[[i]]),
+      term_names    = rownames(res[[i]]),
       ranges        = ran,
       sim_ci        = sim_ci,
       quantile.args = list(...)
@@ -254,15 +299,12 @@ gof_ergmito <- function(
 }
 
 #' @export
-#' @param digits Number of digits to used when printing
-#' @rdname ergmito_gof
-#' @details The print method tries to copy (explicitly) the print method of the
-#' `gof` function from the `ergm` R package.
-print.ergmito_gof <- function(x, digits = 2L, ...) {
+# @rdname ergmito_gof
+print.ergmito_gof <- function(x, ...) {
   
-  K <- length(x$term.names)
+  K <- length(x$term_names)
   for (k in seq_len(K)) {
-    cat("\nGoodness-of-fit for", x$term.names[k], "\n\n", sep=" ")
+    cat("\nGoodness-of-fit for", x$term_names[k], "\n\n", sep=" ")
     
     # Creating the table to be printed
     lower  <- sapply(x$ci, "[", i = k, j = "lower-q", drop = TRUE)
@@ -272,7 +314,7 @@ print.ergmito_gof <- function(x, digits = 2L, ...) {
     minx   <- sapply(x$ranges, "[", i = k, j = "min", drop = TRUE)
     mean   <- sapply(x$ranges, "[", i = k, j = "mean", drop = TRUE)
     maxx   <- sapply(x$ranges, "[", i = k, j = "max", drop = TRUE)
-    obs    <- x$target.stats[, k]
+    obs    <- x$target_stats[, k]
     
     tab <- data.frame(cbind(obs, minx, mean, maxx, lower, upper, lowerp, upperp))
     dimnames(tab) <- list(
@@ -280,7 +322,7 @@ print.ergmito_gof <- function(x, digits = 2L, ...) {
       c("obs", "min", "mean", "max", "lower", "upper", "lower prob.", "upper prob.")
       )
       
-    print(tab, digits = digits)
+    print(tab, ...)
     cat("\n")
     
   }
@@ -320,21 +362,21 @@ plot.ergmito_gof <- function(
   ) {
   
   # Personalized y-axis labels
-  if (is.null(tnames)) tnames <- x$term.names
+  if (is.null(tnames)) tnames <- x$term_names
   else { # We must check that it works
     
     if (!is.character(tnames))
       stop("`tnames` should be a character vector.", call. = FALSE)
     if (is.null(names(tnames)))
       stop("`tnames` should have names.", call. = FALSE)
-    if (length(setdiff(x$term.names, names(tnames)))) 
+    if (length(setdiff(x$term_names, names(tnames)))) 
       stop("All the term names must be `tnames`.", call. = FALSE)
     
-    tnames <- tnames[match(x$term.names, names(tnames))]
+    tnames <- tnames[match(x$term_names, names(tnames))]
     
   }
   
-  K <- length(x$term.names)
+  K <- length(x$term_names)
   op <- graphics::par(
     mfcol = c(K, 1L), 
     mar   = graphics::par("mar")*c(.05, 1, .05, 1),
@@ -346,7 +388,7 @@ plot.ergmito_gof <- function(
     
     lower <- sapply(x$ci, "[", i = k, j = "lower-q", drop = TRUE)
     upper <- sapply(x$ci, "[", i = k, j = "upper-q", drop = TRUE)
-    obs   <- x$target.stats[, k]
+    obs   <- x$target_stats[, k]
     
     if (is.null(xorder)) {
       if (sort_by_ci)

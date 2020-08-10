@@ -41,14 +41,16 @@ BEGIN_RCPP
 END_RCPP
 }
 // new_ergmito_ptr
-SEXP new_ergmito_ptr(const arma::mat& target_stats, const std::vector< arma::rowvec >& stats_weights, const std::vector< arma::mat >& stats_statmat);
-RcppExport SEXP _ergmito_new_ergmito_ptr(SEXP target_statsSEXP, SEXP stats_weightsSEXP, SEXP stats_statmatSEXP) {
+SEXP new_ergmito_ptr(const NumericMatrix& target_stats, const ListOf< NumericVector >& stats_weights, const ListOf< NumericMatrix >& stats_statmat, const NumericVector& target_offset, const ListOf< NumericVector >& stats_offset);
+RcppExport SEXP _ergmito_new_ergmito_ptr(SEXP target_statsSEXP, SEXP stats_weightsSEXP, SEXP stats_statmatSEXP, SEXP target_offsetSEXP, SEXP stats_offsetSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type target_stats(target_statsSEXP);
-    Rcpp::traits::input_parameter< const std::vector< arma::rowvec >& >::type stats_weights(stats_weightsSEXP);
-    Rcpp::traits::input_parameter< const std::vector< arma::mat >& >::type stats_statmat(stats_statmatSEXP);
-    rcpp_result_gen = Rcpp::wrap(new_ergmito_ptr(target_stats, stats_weights, stats_statmat));
+    Rcpp::traits::input_parameter< const NumericMatrix& >::type target_stats(target_statsSEXP);
+    Rcpp::traits::input_parameter< const ListOf< NumericVector >& >::type stats_weights(stats_weightsSEXP);
+    Rcpp::traits::input_parameter< const ListOf< NumericMatrix >& >::type stats_statmat(stats_statmatSEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type target_offset(target_offsetSEXP);
+    Rcpp::traits::input_parameter< const ListOf< NumericVector >& >::type stats_offset(stats_offsetSEXP);
+    rcpp_result_gen = Rcpp::wrap(new_ergmito_ptr(target_stats, stats_weights, stats_statmat, target_offset, stats_offset));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -76,16 +78,26 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// exact_hessian
-arma::mat exact_hessian(const arma::mat& x, const arma::colvec params, const std::vector< arma::rowvec >& stats_weights, const std::vector< arma::mat >& stats_statmat);
-RcppExport SEXP _ergmito_exact_hessian(SEXP xSEXP, SEXP paramsSEXP, SEXP stats_weightsSEXP, SEXP stats_statmatSEXP) {
+// get_boundaries
+List get_boundaries(SEXP ptr);
+RcppExport SEXP _ergmito_get_boundaries(SEXP ptrSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type x(xSEXP);
-    Rcpp::traits::input_parameter< const arma::colvec >::type params(paramsSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type ptr(ptrSEXP);
+    rcpp_result_gen = Rcpp::wrap(get_boundaries(ptr));
+    return rcpp_result_gen;
+END_RCPP
+}
+// exact_hessian
+arma::mat exact_hessian(const arma::colvec& params, const std::vector< arma::rowvec >& stats_weights, const std::vector< arma::mat >& stats_statmat, const std::vector< arma::colvec >& stats_offset);
+RcppExport SEXP _ergmito_exact_hessian(SEXP paramsSEXP, SEXP stats_weightsSEXP, SEXP stats_statmatSEXP, SEXP stats_offsetSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< const arma::colvec& >::type params(paramsSEXP);
     Rcpp::traits::input_parameter< const std::vector< arma::rowvec >& >::type stats_weights(stats_weightsSEXP);
     Rcpp::traits::input_parameter< const std::vector< arma::mat >& >::type stats_statmat(stats_statmatSEXP);
-    rcpp_result_gen = Rcpp::wrap(exact_hessian(x, params, stats_weights, stats_statmat));
+    Rcpp::traits::input_parameter< const std::vector< arma::colvec >& >::type stats_offset(stats_offsetSEXP);
+    rcpp_result_gen = Rcpp::wrap(exact_hessian(params, stats_weights, stats_statmat, stats_offset));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -157,9 +169,10 @@ static const R_CallMethodDef CallEntries[] = {
     {"_ergmito_count_available", (DL_FUNC) &_ergmito_count_available, 1},
     {"_ergmito_count_stats", (DL_FUNC) &_ergmito_count_stats, 3},
     {"_ergmito_geodesic", (DL_FUNC) &_ergmito_geodesic, 2},
-    {"_ergmito_new_ergmito_ptr", (DL_FUNC) &_ergmito_new_ergmito_ptr, 3},
+    {"_ergmito_new_ergmito_ptr", (DL_FUNC) &_ergmito_new_ergmito_ptr, 5},
     {"_ergmito_exact_loglik", (DL_FUNC) &_ergmito_exact_loglik, 3},
     {"_ergmito_exact_gradient", (DL_FUNC) &_ergmito_exact_gradient, 3},
+    {"_ergmito_get_boundaries", (DL_FUNC) &_ergmito_get_boundaries, 1},
     {"_ergmito_exact_hessian", (DL_FUNC) &_ergmito_exact_hessian, 4},
     {"_ergmito_induced_submat", (DL_FUNC) &_ergmito_induced_submat, 2},
     {"_ergmito_matrix_to_network", (DL_FUNC) &_ergmito_matrix_to_network, 6},

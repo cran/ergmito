@@ -50,7 +50,7 @@ compute_mfrow <- function(k) {
 #' plot(ans)
 #' 
 #' @seealso The [ergmito] function.
-#' @importFrom graphics image par plot title lines
+#' @importFrom graphics image par plot title lines boxplot
 #' @importFrom utils combn
 #' @importFrom stats setNames
 plot.ergmito <- function(
@@ -60,7 +60,7 @@ plot.ergmito <- function(
   plot.      = TRUE,
   par_args   = list(),
   image_args = list(),
-  breaks     = 50L,
+  breaks     = 20L,
   extension  = 4L,
   params_labs = stats::setNames(names(coef(x)), names(coef(x))),
   ...
@@ -72,21 +72,16 @@ plot.ergmito <- function(
     stop("When specifying `param_labs`, all parameters should be specified.",
          call. = FALSE)
   }
+  
+  if (x$formulae$npar < 2)
+    stop("Only models with at least 2 terms can be plotted.", call. = FALSE)
+  
   params_labs <- params_labs[names(coef(x))]
   
   if (!inherits(x, "ergmito"))
     stop("This function only accepts objects of class `ergmito`.", call. = FALSE)
   
-  f <- function(p) {
-    with(
-      x$formulae,
-      loglik(
-        params        = p,
-        target.stats  = target.stats,
-        stats.weights = stats.weights,
-        stats.statmat = stats.statmat
-        )
-    )}
+  f <- function(p) {x$formulae$loglik(p)}
   
   k <- x$formulae$npars
   

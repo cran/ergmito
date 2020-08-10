@@ -2,21 +2,9 @@
 % Please edit documentation in R/utils.R
 \name{as_adjmat}
 \alias{as_adjmat}
-\alias{as_adjmat.network}
-\alias{as_adjmat.matrix}
-\alias{as_adjmat.list}
-\alias{as_adjmat.formula}
 \title{An alternative to \code{as.matrix} to retrieve adjacency matrix fast}
 \usage{
 as_adjmat(x)
-
-\method{as_adjmat}{network}(x)
-
-\method{as_adjmat}{matrix}(x)
-
-\method{as_adjmat}{list}(x)
-
-\method{as_adjmat}{formula}(x)
 }
 \arguments{
 \item{x}{An object to be coerced as an adjacency matrix.}
@@ -24,4 +12,13 @@ as_adjmat(x)
 \description{
 This function does not perform significant checks. Furthermore, this function
 won't keep the row/col names.
+}
+\examples{
+
+set.seed(1231)
+x <- matrix_to_network(rbernoulli(rep(5, 100)))
+benchmarkito(
+  as_adjmat = as_adjmat(x),
+  as.matrix = lapply(x, as.matrix)
+)
 }

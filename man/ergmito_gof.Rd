@@ -3,21 +3,19 @@
 \name{ergmito_gof}
 \alias{ergmito_gof}
 \alias{gof_ergmito}
-\alias{print.ergmito_gof}
 \alias{plot.ergmito_gof}
 \title{Goodness of Fit diagnostics for ERGMito models}
 \usage{
 gof_ergmito(
   object,
   GOF = NULL,
+  GOF_update = NULL,
   probs = c(0.05, 0.95),
   sim_ci = FALSE,
   R = 50000L,
   ncores = 1L,
   ...
 )
-
-\method{print}{ergmito_gof}(x, digits = 2L, ...)
 
 \method{plot}{ergmito_gof}(
   x,
@@ -34,6 +32,8 @@ gof_ergmito(
 
 \item{GOF}{Formula. Additional set of parameters to perform the GOF.}
 
+\item{GOF_update}{Formula. See the section on model updating in \code{\link[=ergmito_formulae]{ergmito_formulae()}}.}
+
 \item{probs}{Numeric vector. Quantiles to plot (see details).}
 
 \item{sim_ci}{Logical scalar. If \code{FALSE}, the default, it will compute the
@@ -48,8 +48,6 @@ This is only used if \code{sim_ci = TRUE}.}
 \item{...}{Further arguments passed to \link[stats:quantile]{stats::quantile}.}
 
 \item{x}{An object of class \code{ergmito_gof}.}
-
-\item{digits}{Number of digits to used when printing}
 
 \item{y}{Ignored.}
 
@@ -66,12 +64,12 @@ components:
 \itemize{
 \item \code{ci} A list of matrices of length \code{nnets(object)} with the corresponding
 confidence intervals for the statistics of the model.
-\item \code{target.stats} A matrix of the target statistics.
+\item \code{target_stats} A matrix of the target statistics.
 \item \code{ergmito.probs} A list of numeric vectors of length \code{nnets(object)} with the
 probabilities associated to each possible structure of network.
 \item \code{probs} The value passed via \code{probs}.
 \item \code{model} The fitted model.
-\item \code{term.names} Character vector. Names of the terms used in the model.
+\item \code{term_names} Character vector. Names of the terms used in the model.
 \item \code{quantile.args} A list of the values passed via \code{...}.
 }
 }
