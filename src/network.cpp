@@ -200,12 +200,9 @@ inline ListOf< List > matrix_to_networki(
   
   int nedge = 0;
   for (int j = 0; j < m; ++j) {
-    
-    char name[64];
-    sprintf(&(name[0]), "%i", (unsigned short) j + 1u);
-    
+        
     val.at(j) = NA_falseList;
-    val.at(j)["vertex.names"] = name;
+    val.at(j)["vertex.names"] = std::to_string(static_cast<size_t>(j) + 1u);
     
     int ni = n;
     if (!directed)
@@ -269,7 +266,7 @@ inline ListOf< List > matrix_to_networki(
   
 }
 
-// [[Rcpp::export(name="matrix_to_network.", rng = false)]]
+// [[Rcpp::export(name = "matrix_to_network_cpp", rng = false)]]
 ListOf< List > matrix_to_network(
     const ListOf< IntegerMatrix > & x,
     const LogicalVector & directed ,
@@ -339,7 +336,7 @@ ListOf< List > matrix_to_network(
 //   
 // }
 // 
-// // [[Rcpp::export(name="add_vertex_attr.")]]
+// // [[Rcpp::export(name = "add_vertex_attr_cpp")]]
 // ListOf< List > add_vertex_attr(
 //     const ListOf< List > & x, 
 //     const ListOf< GenericVector > & vattrs,

@@ -22,10 +22,10 @@ inline IntegerMatrix induced_submati(
   for (i = 0u; i < n; ++i) 
     for (j = 0u; j < n; ++j) {
       
-      if ((v[i] < 0) | (v[i] > (net.size() - 1)))
-        stop("out of boundary");
-      if ((v[j] < 0) | (v[j] > (net.size() - 1)))
-        stop("out of boundary");
+      if ((v[i] < 0) || (v[i] > (net.size() - 1)))
+        stop("Vertex index out of range");
+      if ((v[j] < 0) || (v[j] > (net.size() - 1)))
+        stop("Vertex index out of range");
         
       if (net(v[i], v[j]) != 0)
         newnet(i, j) = net(v[i], v[j]);
@@ -35,7 +35,7 @@ inline IntegerMatrix induced_submati(
   
 }
 
-// [[Rcpp::export(name = "induced_submat.")]]
+// [[Rcpp::export(name = "induced_submat_cpp")]]
 std::vector< IntegerMatrix > induced_submat(
   const std::vector< IntegerMatrix > & nets,
   const std::vector< IntegerVector > & vs
